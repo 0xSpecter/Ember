@@ -5,6 +5,7 @@ pub struct Texture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
+    pub bind_group: Option<TextureBindGroup>
 }
 
 impl Texture {
@@ -14,7 +15,6 @@ impl Texture {
         queue: &wgpu::Queue,
     ) -> Result<Self> {
         let bytes = read_file(file_name)?;
-        println!("{:?}", &bytes);
         Self::from_bytes(device, queue, &bytes, file_name)
     }
 
@@ -86,7 +86,7 @@ impl Texture {
             ..Default::default()
         });
 
-        Ok(Self { texture, view, sampler })
+        Ok(Self { texture, view, sampler, bind_group: None })
     }
 
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -125,30 +125,19 @@ impl Texture {
             }
         );
 
-        Self { texture, view, sampler }
+        Self { texture, view, sampler, bind_group: None }
     }
 
-    pub fn default_bind_group_layout(stage: wgpu::ShaderStages, device: &wgpu::Device, label: Option<&str>) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: stage,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: stage,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-        }) 
+    pub fn get_bind_group(&self) -> &TextureBindGroup {
+        self.bind_group.as_ref().unwrap()
+    }
+
+    pub fn attach_bind_group(&mut self, group: u32, device: &wgpu::Device) {
+        let bind_group = TextureBindGroup::new(group, device, self);
+        self.bind_group = Some(bind_group);
+    }
+
+    pub fn default_texture(device: &wgpu::Device, queue: &wgpu::Queue) -> Result<Self> {
+        Self::from_file("cottage_textures/cottage_diffuse.png", device, queue)
     }
 }

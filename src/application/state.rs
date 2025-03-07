@@ -10,14 +10,13 @@ pub struct State<'a> {
 
     render_pipeline: wgpu::RenderPipeline,
 
-    bind_group: wgpu::BindGroup,
-    diffuse_texture: Texture,
-
     camera: Camera,
     camera_controller: CameraController,
     camera_buffer: wgpu::Buffer,
     camera_uniform: CameraUniform,
     camera_bind_group: wgpu::BindGroup,
+
+    time_bind_group: TimeBindGroup,
 
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
@@ -75,46 +74,6 @@ impl<'a> State<'a> {
         
         let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl")); 
 
-        let bytes = include_bytes!("../tree.jpg");
-        let diffuse_texture = Texture::from_bytes(&device, &queue, bytes, "hello").unwrap();
-
-        let tx_binding_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Bind group"),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture { 
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true }, 
-                        view_dimension:  wgpu::TextureViewDimension::D2, 
-                        multisampled: false
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ]
-        });
-
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("bind group"),
-            layout: &tx_binding_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ]
-        });
-        
         let camera: Camera = Camera::std(&config);
         let camera_uniform = CameraUniform::from_proj(&camera);
 
@@ -151,28 +110,31 @@ impl<'a> State<'a> {
             ]
         });
 
+        let time_bind_group = TimeBindGroup::new(2, &device);
+
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth texture");
+
 
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("piplay"),
             bind_group_layouts: &[
-                &tx_binding_group_layout,
+                &TextureBindGroup::dummy_layout(0, &device),
                 &camera_bind_group_layout,
+                time_bind_group.group_layout(),
             ],
             push_constant_ranges: &[]
         });
 
         let obj_model = Model::load_model(
-            "cube.obj", 
+            "cottage_obj.obj", 
             &device, 
             &queue, 
-            &Texture::default_bind_group_layout(wgpu::ShaderStages::FRAGMENT, &device, Some("cube bind group"))
         ).unwrap();
 
         const SPACE_BETWEEN: f32 = 3.0;
         let instances: Vec<Instance> = (0..10).flat_map(|x| (0..10).map(move |z| {
-            let x = SPACE_BETWEEN * (x as f32 - 10 as f32 / 2.0);
-            let z = SPACE_BETWEEN * (z as f32 - 10 as f32 / 2.0);
+            let x = SPACE_BETWEEN * (x as f32 - 10. / 2.0);
+            let z = SPACE_BETWEEN * (z as f32 - 10. / 2.0);
 
             let pos = Vec3 { x, y: 0.0, z };
 
@@ -247,7 +209,6 @@ impl<'a> State<'a> {
             cache: None,
         });
 
-
         
         let camera_controller = CameraController::new(false);
 
@@ -259,10 +220,9 @@ impl<'a> State<'a> {
             config,
             size,
 
-            render_pipeline,
+            time_bind_group,
 
-            bind_group,
-            diffuse_texture,
+            render_pipeline,
 
             camera,
             camera_controller,
@@ -297,6 +257,7 @@ impl<'a> State<'a> {
     pub fn update(&mut self) {
         self.camera_controller.update(&mut self.camera);
         self.camera_uniform.update(&self.camera);
+        self.time_bind_group.update(&self.device);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
     }
 
@@ -335,11 +296,12 @@ impl<'a> State<'a> {
         });
 
         render_pass.set_pipeline(&self.render_pipeline);
-        render_pass.set_bind_group(0, &self.bind_group, &[]);
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        self.time_bind_group.set(&mut render_pass);
 
-        render_pass.draw_mesh_instanced(&self.obj_model.meshes[0], 0..self.instances.len() as u32);
+        render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        render_pass.draw_model(&self.obj_model);
+        // render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32);
 
         drop(render_pass);
 

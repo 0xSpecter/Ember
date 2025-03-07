@@ -1,22 +1,33 @@
-use crate::prelude::Mesh;
+use crate::prelude::*;
 
 pub trait DrawModel<'a> {
-    fn draw_mesh(&mut self, mesh: &'a Mesh);
-    fn draw_mesh_instanced(&mut self, mesh: &'a Mesh, instances: std::ops::Range<u32>);
+    fn draw_mesh(&mut self, mesh: &'a Mesh, material: &'a Material);
+    fn draw_mesh_instanced(&mut self, mesh: &'a Mesh, material: &'a Material, instances: std::ops::Range<u32>);
+
+    fn draw_model(&mut self, model: &'a Model);
+    fn draw_model_instanced(&mut self, model: &'a Model, instances: std::ops::Range<u32>);
 }
 
 impl<'a, 'b> DrawModel<'b> for wgpu::RenderPass<'a> where 'b: 'a {
-    fn draw_mesh(&mut self, mesh: &'b Mesh) {
-        self.draw_mesh_instanced(mesh, 0..1_u32);
+    fn draw_mesh(&mut self, mesh: &'b Mesh, material: &'a Material) {
+        self.draw_mesh_instanced(mesh, material, 0..1_u32);
     } 
 
-    fn draw_mesh_instanced(&mut self, mesh: &'b Mesh, instances: std::ops::Range<u32>) {
+    fn draw_mesh_instanced(&mut self, mesh: &'b Mesh, material: &'b Material, instances: std::ops::Range<u32>) {
         self.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
         self.set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        material.diffuse_texture.get_bind_group().set(self);
         self.draw_indexed(0..mesh.num_elements, 0, instances);
     }
-}
 
-fn test_print<T>(item: T) where T: Clone + std::fmt::Display + std::fmt::Debug, {
-    println!("{:?}", item.clone());
+    fn draw_model(&mut self, model: &'b Model) {
+        self.draw_model_instanced(model, 0..1_u32);
+    } 
+
+    fn draw_model_instanced(&mut self, model: &'a Model, instances: std::ops::Range<u32>) {
+        for mesh in &model.meshes {
+            let material = &model.materials[mesh.material]; 
+            self.draw_mesh_instanced(mesh, material, instances.clone());
+        }
+    }
 }

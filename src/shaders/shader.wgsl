@@ -23,6 +23,10 @@ struct CameraUniform {
 @group(1) @binding(0) 
 var<uniform> camera: CameraUniform;
 
+
+@group(2) @binding(0)
+var<uniform> time: f32;
+
 @vertex
 fn vs_main(
     model: VertexInput,
@@ -36,9 +40,17 @@ fn vs_main(
         instance.mm2,
         instance.mm3,
     );
+
+    let scale: f32 = (sin(time / 1000) + 2) / 10;
+    let sc = mat4x4<f32>(
+        vec4<f32>(scale, 0.0, 0.0, 0.0),
+        vec4<f32>(0.0, scale, 0.0, 0.0),
+        vec4<f32>(0.0, 0.0, scale, 0.0),
+        vec4<f32>(0.0, 0.0, 0.0, 1.0),
+    );
     
     out.tex_coords = model.tex_coords;
-    out.clip_position = camera.view_proj * model_matrix * vec4<f32>(model.position, 1.0);
+    out.clip_position = camera.view_proj * model_matrix * sc * vec4<f32>(model.position, 1.0);
 
     return out;
 }
@@ -50,9 +62,10 @@ var tx: texture_2d<f32>;
 var sp: sampler;
 
 
+
 @fragment
 fn fs_main(
     in: VertexOutput
 ) -> @location(0) vec4<f32> {
-    return textureSample(tx, sp, in.tex_coords) * 1.5;
+    return textureSample(tx, sp, in.tex_coords) * (sin(time / 1000) + 2);
 }

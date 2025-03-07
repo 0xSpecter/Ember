@@ -14,7 +14,6 @@ impl Model {
         file_name: &str,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        layout: &wgpu::BindGroupLayout,
     ) -> anyhow::Result<Self> {
         let obj_cursor = Cursor::new(stuff_path(file_name)?);
         let mut obj_reader = BufReader::new(obj_cursor);
@@ -27,29 +26,22 @@ impl Model {
                 ..Default::default()
             },
             |p| {
-                let mat_text = stuff_path(&p.to_str().unwrap()).unwrap();
+                println!("{:?}", p);
+                let mat_text = stuff_path(p.to_str().unwrap()).unwrap();
                 tobj::load_mtl_buf(&mut BufReader::new(Cursor::new(mat_text)))
             },
         )?;
 
         let materials = obj_materials?.into_iter().map(|m| {
-            let diffuse_texture = Texture::from_file(&m.diffuse_texture.unwrap(), device, queue).unwrap();
-            let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout,
-                label: None,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&diffuse_texture.view)
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler)
-                    },
-                ]
-            });
+            println!("{m:?}");
+            let mut diffuse_texture: Texture = if let Some(diffuse_texture) = &m.diffuse_texture {
+                Texture::from_file(diffuse_texture, device, queue).unwrap()
+            } else {
+                Texture::default_texture(device, queue).unwrap()
+            };
 
-            Material::new(m.name, diffuse_texture, bind_group)
+            diffuse_texture.attach_bind_group(0, device);
+            Material::new(m.name, diffuse_texture)
         }).collect::<Vec<Material>>();
 
         let meshes = models.into_iter().map(|m| {
@@ -81,30 +73,6 @@ impl Model {
         Ok(Self {
             meshes,
             materials,
-        })
-    }
-
-    pub fn default_bind_group(stage: wgpu::ShaderStages, device: &wgpu::Device, label: Option<&str>) -> wgpu::BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label,
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: stage,
-                    ty: wgpu::BindingType::Texture { 
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true }, 
-                        view_dimension: wgpu::TextureViewDimension::D2, 
-                        multisampled: false,
-                    },
-                    count: None
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: stage,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None
-                },
-            ]
         })
     }
 }

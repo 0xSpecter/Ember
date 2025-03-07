@@ -1,17 +1,15 @@
-use crate::prelude::Texture;
+use crate::prelude::{Texture, TextureBindGroup};
 
 pub struct Material {
     pub name: String,
     pub diffuse_texture: Texture,
-    pub bind_group: wgpu::BindGroup,
 }
 
 impl Material {
-    pub fn new(name: String, diffuse_texture: Texture, bind_group: wgpu::BindGroup) -> Self {
+    pub fn new(name: String, diffuse_texture: Texture) -> Self {
         Self {
             name,
-            diffuse_texture,
-            bind_group,
+            diffuse_texture, 
         }
     }
 }

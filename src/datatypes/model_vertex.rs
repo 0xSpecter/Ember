@@ -16,7 +16,10 @@ impl ModelVertex {
                 model.mesh.positions[index * 3 + 1],
                 model.mesh.positions[index * 3 + 2],
             ],
-            tex_coords: [model.mesh.texcoords[index * 2], 1.0 - model.mesh.texcoords[index * 2 + 1]],
+            tex_coords: if !model.mesh.texcoords.is_empty() {
+                [model.mesh.texcoords[index * 2], 
+                1.0 - model.mesh.texcoords[index * 2 + 1]
+                ] } else { [0., 0.5] },
             normal: if !model.mesh.normals.is_empty() { [
                 model.mesh.normals[index * 3],
                 model.mesh.normals[index * 3 + 1],
