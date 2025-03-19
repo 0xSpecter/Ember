@@ -27,6 +27,7 @@ impl ModelVertex {
             ] } else { [0.0, 0.0, 0.0] },
         }
     }
+
 }
 
 impl Vertex for ModelVertex {

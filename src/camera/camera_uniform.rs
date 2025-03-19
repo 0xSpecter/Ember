@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CameraUniform {
     view_proj: [[f32; 4]; 4]
 }
@@ -17,12 +17,12 @@ impl CameraUniform {
 
     pub fn from_proj(camera: &Camera) -> Self {
         Self {
-            view_proj: camera.build_view_projection_matrix().to_cols_array_2d()
+            view_proj: (camera.projection_matrix() * camera.matrix()).to_cols_array_2d(),
         }
     }
 
     pub fn update(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().to_cols_array_2d();       
+        self.view_proj = (camera.projection_matrix() * camera.matrix()).to_cols_array_2d();
     }
 }
 

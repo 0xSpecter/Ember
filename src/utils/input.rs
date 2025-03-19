@@ -3,7 +3,10 @@ use crate::prelude::*;
 #[derive(Default, Debug)]
 pub struct Input {
     pressed_keys: Vec<KeyCode>,
-    held_keys: Vec<KeyCode> 
+    held_keys: Vec<KeyCode>,
+
+    pub mouse_delta: Vec2,
+    pub mouse_position: Vec2,
 }
 
 impl Input {
@@ -11,6 +14,8 @@ impl Input {
         Self {
             held_keys: vec![],
             pressed_keys: vec![], 
+
+            ..Default::default()
         }
     }
 
@@ -45,5 +50,6 @@ impl Input {
 
     pub fn update(&mut self) {
         self.pressed_keys.clear(); 
+        self.mouse_delta = Vec2::ZERO;
     }
 }

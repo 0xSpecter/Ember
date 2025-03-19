@@ -4,6 +4,7 @@ pub mod camera;
 pub mod utils;
 pub mod buffers;
 pub mod binds;
+pub mod geometry; 
 
 pub mod prelude {
     pub use std::sync::{
@@ -11,12 +12,16 @@ pub mod prelude {
         Mutex,
     };  
     pub use std::mem::size_of;
+    pub use std::time::{
+        Instant,
+        Duration,
+    };
 
     pub use winit::{
         event::*,
         event_loop::{ControlFlow, EventLoop, ActiveEventLoop},
         application::ApplicationHandler,
-        window::{Window, WindowId, WindowAttributes},
+        window::{Window, WindowId, WindowAttributes, CursorGrabMode},
         keyboard::*,
     };
 
@@ -48,4 +53,5 @@ pub mod prelude {
     pub use crate::utils::prelude::*;
     pub use crate::buffers::prelude::*;
     pub use crate::binds::prelude::*;
+    pub use crate::geometry::prelude::*;
 }

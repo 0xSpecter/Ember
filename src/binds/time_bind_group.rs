@@ -52,8 +52,6 @@ impl TimeBindGroup {
     }
 }
 impl BindGroup for TimeBindGroup {
-       
-
     fn update(&mut self, device: &wgpu::Device) {
         self.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("time buffer"),

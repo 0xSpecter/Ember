@@ -13,7 +13,7 @@ impl TextureBindGroup {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::all(),
                     ty: wgpu::BindingType::Texture { 
                         sample_type: wgpu::TextureSampleType::Float { filterable: true }, 
                         view_dimension:  wgpu::TextureViewDimension::D2, 
@@ -23,7 +23,7 @@ impl TextureBindGroup {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::all(),
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
@@ -59,7 +59,7 @@ impl TextureBindGroup {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::all(),
                     ty: wgpu::BindingType::Texture { 
                         sample_type: wgpu::TextureSampleType::Float { filterable: true }, 
                         view_dimension:  wgpu::TextureViewDimension::D2, 
@@ -69,7 +69,7 @@ impl TextureBindGroup {
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    visibility: wgpu::ShaderStages::all(),
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },

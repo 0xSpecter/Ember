@@ -1,3 +1,5 @@
+use image::GenericImageView;
+
 use crate::prelude::*;
 
 pub struct State<'a> {
@@ -11,7 +13,7 @@ pub struct State<'a> {
     render_pipeline: wgpu::RenderPipeline,
 
     camera: Camera,
-    camera_controller: CameraController,
+    camera_controller: Box<dyn CameraController>,
     camera_buffer: wgpu::Buffer,
     camera_uniform: CameraUniform,
     camera_bind_group: wgpu::BindGroup,
@@ -114,7 +116,6 @@ impl<'a> State<'a> {
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth texture");
 
-
         let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("piplay"),
             bind_group_layouts: &[
@@ -126,27 +127,27 @@ impl<'a> State<'a> {
         });
 
         let obj_model = Model::load_model(
-            "cottage_obj.obj", 
+            "cube.obj", 
             &device, 
             &queue, 
         ).unwrap();
 
-        const SPACE_BETWEEN: f32 = 3.0;
-        let instances: Vec<Instance> = (0..10).flat_map(|x| (0..10).map(move |z| {
-            let x = SPACE_BETWEEN * (x as f32 - 10. / 2.0);
-            let z = SPACE_BETWEEN * (z as f32 - 10. / 2.0);
 
-            let pos = Vec3 { x, y: 0.0, z };
+        let instances: Vec<Instance> = (0..(std::f32::consts::PI*2.0) as i32).flat_map(|x| {
+            (0..(std::f32::consts::PI*2.0) as i32).flat_map(move |y| {
+                (0..(std::f32::consts::PI*2.0) as i32).map(move |z| {
+                    let x = 1.0 * (x as f32 - 10. / 2.0);
+                    let y = 1.0 * (y as f32 - 10. / 2.0);
+                    let z = 1.0 * (z as f32 - 10. / 2.0);
 
-            let rot = if pos == Vec3::ZERO {
-                Quat::from_axis_angle(Vec3::Z, 0.0_f32.to_radians())
-            } else {
-                Quat::from_axis_angle(pos.normalize(), 45_f32.to_radians())
-            };
+                    let pos = vec3(x, y, z);
 
+                    let rot = Quat::from_rotation_x(x);
 
-            Instance::new(pos, rot)
-        })).collect::<Vec<Instance>>();
+                    Instance::new(pos, rot)
+                })
+            })
+        }).collect::<Vec<Instance>>();
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<InstanceRaw>>();
         let instance_buffer = device.create_buffer_init(
@@ -210,7 +211,7 @@ impl<'a> State<'a> {
         });
 
         
-        let camera_controller = CameraController::new(false);
+        let camera_controller = Box::new(DroneCam::new());
 
         State {
             instance,
@@ -254,8 +255,8 @@ impl<'a> State<'a> {
         self.camera_controller.process_events(input);
     }
 
-    pub fn update(&mut self) {
-        self.camera_controller.update(&mut self.camera);
+    pub fn update(&mut self, delta: Duration) {
+        self.camera_controller.update(&mut self.camera, delta.as_secs_f32());
         self.camera_uniform.update(&self.camera);
         self.time_bind_group.update(&self.device);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
@@ -300,8 +301,8 @@ impl<'a> State<'a> {
         self.time_bind_group.set(&mut render_pass);
 
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        render_pass.draw_model(&self.obj_model);
-        // render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32);
+        //render_pass.draw_model(&self.obj_model);
+        render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32);
 
         drop(render_pass);
 

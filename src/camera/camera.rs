@@ -1,33 +1,47 @@
 use crate::prelude::*;
 
 pub struct Camera {
-    pub eye: Vec3, // position
-    pub target: Vec3, // look
-    pub world_up: Vec3, // local Y up
-    pub aspect: f32, // aspect ratio
-    pub fovy: f32, // fov based on y axis
-    pub znear: f32, // min view distance
-    pub zfar: f32, // max view distance
+    pub position: Vec3,
+    pub yaw: f32, // radians
+    pub pitch: f32, // radians
+    pub projection: Projection,
 }
 
 impl Camera {
-    pub fn build_view_projection_matrix(&self) -> Mat4 {
-        let view = Mat4::look_at_rh(self.eye, self.target, self.world_up);
-        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
+    pub const WORLD_UP: Vec3 = Vec3::Y;
 
-        proj * view  // REMEMBER THIS IS NOT BOTH WAY WORK PROJ FIRST THE VIEW YOU MORON IDIOT SCUM
+    pub fn new(position: Vec3, yaw: f32, pitch: f32, projection: Projection) -> Self {
+        Self {
+            position,
+            yaw,
+            pitch,
+            projection,
+        }
     }
 
     pub fn std(config: &wgpu::SurfaceConfiguration) -> Self {
-        Camera {
-            eye: vec3(0.0, 0.0, 2.0), 
-            target: vec3(0.0, 0.0, 0.0),
-            world_up: glam::Vec3::Y,
-            aspect: config.width as f32 / config.height as f32,
-            fovy: 45.0,
-            znear: 0.1,
-            zfar: 100.0,
+        Self {
+            position: Vec3::ZERO,
+            yaw: 0.0,
+            pitch: 0.0,
+            projection: Projection::std(config),
         }
+    }
+
+    pub fn matrix(&self) -> Mat4 {
+        Mat4::look_at_rh(
+            self.position,
+            Vec3::new(
+                self.pitch.cos() * self.yaw.cos(),
+                self.pitch.sin(),
+                self.pitch.cos() * self.yaw.sin()
+            ) + self.position,
+            Camera::WORLD_UP,
+        )
+    }
+
+    pub fn projection_matrix(&self) -> Mat4 {
+        self.projection.matrix()
     }
 }
 

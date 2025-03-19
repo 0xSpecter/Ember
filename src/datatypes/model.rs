@@ -44,9 +44,15 @@ impl Model {
             Material::new(m.name, diffuse_texture)
         }).collect::<Vec<Material>>();
 
-        let meshes = models.into_iter().map(|m| {
+        let meshes = models.into_iter().enumerate().map(|(iindex, m)| {
             let vertices = (0..m.mesh.positions.len() / 3).map(|index| {
-                ModelVertex::convert(m.clone(), index)
+                let mut vertex = ModelVertex::convert(m.clone(), index);
+                let scale = if iindex < materials.len() {materials[iindex].diffuse_texture.tex_coords_scale} else {materials[0].diffuse_texture.tex_coords_scale};
+
+                vertex.tex_coords[0] *= scale;
+                vertex.tex_coords[1] *= scale;
+
+                vertex
             }).collect::<Vec<ModelVertex>>();
 
             let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
