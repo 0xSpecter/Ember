@@ -1,5 +1,3 @@
-use image::GenericImageView;
-
 use crate::prelude::*;
 
 pub struct State<'a> {
@@ -10,7 +8,8 @@ pub struct State<'a> {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
 
-    render_pipeline: wgpu::RenderPipeline,
+    render_pipeline: Pipeline,
+    light_pipeline: Pipeline,
 
     camera: Camera,
     camera_controller: Box<dyn CameraController>,
@@ -19,6 +18,8 @@ pub struct State<'a> {
     camera_bind_group: wgpu::BindGroup,
 
     time_bind_group: TimeBindGroup,
+
+    light: Light,
 
     instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
@@ -74,8 +75,6 @@ impl<'a> State<'a> {
         };
         // --
         
-        let shader = device.create_shader_module(wgpu::include_wgsl!("../shaders/shader.wgsl")); 
-
         let camera: Camera = Camera::std(&config);
         let camera_uniform = CameraUniform::from_proj(&camera);
 
@@ -90,7 +89,7 @@ impl<'a> State<'a> {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::all(),
                     ty: wgpu::BindingType::Buffer { 
                         ty: wgpu::BufferBindingType::Uniform, 
                         has_dynamic_offset: false, 
@@ -112,19 +111,11 @@ impl<'a> State<'a> {
             ]
         });
 
-        let time_bind_group = TimeBindGroup::new(2, &device);
+        let time_bind_group = TimeBindGroup::new(&device);
 
         let depth_texture = Texture::create_depth_texture(&device, &config, "depth texture");
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("piplay"),
-            bind_group_layouts: &[
-                &TextureBindGroup::dummy_layout(0, &device),
-                &camera_bind_group_layout,
-                time_bind_group.group_layout(),
-            ],
-            push_constant_ranges: &[]
-        });
+        let light = Light::new(&device);
 
         let obj_model = Model::load_model(
             "cube.obj", 
@@ -132,13 +123,12 @@ impl<'a> State<'a> {
             &queue, 
         ).unwrap();
 
-
         let instances: Vec<Instance> = (0..(std::f32::consts::PI*2.0) as i32).flat_map(|x| {
             (0..(std::f32::consts::PI*2.0) as i32).flat_map(move |y| {
                 (0..(std::f32::consts::PI*2.0) as i32).map(move |z| {
-                    let x = 1.0 * (x as f32 - 10. / 2.0);
-                    let y = 1.0 * (y as f32 - 10. / 2.0);
-                    let z = 1.0 * (z as f32 - 10. / 2.0);
+                    let x = 4.0 * (x as f32 - 10. / 2.0);
+                    let y = 4.0 * (y as f32 - 10. / 2.0);
+                    let z = 4.0 * (z as f32 - 10. / 2.0);
 
                     let pos = vec3(x, y, z);
 
@@ -157,61 +147,39 @@ impl<'a> State<'a> {
                 usage: wgpu::BufferUsages::VERTEX,
             }
         );
-
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("render pipe"),
-            layout: Some(&render_pipeline_layout),
-            
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[ModelVertex::desc(), InstanceRaw::desc()],
-                compilation_options: Default::default(),
-            },
-
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                compilation_options: Default::default(),
-                targets: &[
-                    Some(wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })             
-                ]
-            }),
-
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false
-            },
-
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: Texture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false
-            },
-            multiview: None,
-            cache: None,
-        });
-
         
         let camera_controller = Box::new(DroneCam::new());
+
+        let render_pipeline = Pipeline::new(
+            &device,
+            &[
+                &TextureBindGroup::dummy_layout(&device),
+                &camera_bind_group_layout,
+                time_bind_group.group_layout(),
+                light.bind.group_layout(),
+            ],
+            &[
+                ModelVertex::desc(), 
+                InstanceRaw::desc()
+            ],
+            wgpu::include_wgsl!("../shaders/shader.wgsl"),
+            config.format,
+            Some(Texture::DEPTH_FORMAT),
+        );
+
+        let light_pipeline = Pipeline::new(
+            &device,
+            &[
+                &camera_bind_group_layout,
+                light.bind.group_layout(),
+            ],
+            &[
+                ModelVertex::desc(), 
+            ],
+            wgpu::include_wgsl!("../shaders/light.wgsl"),
+            config.format,
+            Some(Texture::DEPTH_FORMAT),
+        );
 
         State {
             instance,
@@ -224,12 +192,15 @@ impl<'a> State<'a> {
             time_bind_group,
 
             render_pipeline,
+            light_pipeline,
 
             camera,
             camera_controller,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
+
+            light,
 
             obj_model,
 
@@ -247,7 +218,7 @@ impl<'a> State<'a> {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
 
-            self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_ texture");
+            self.depth_texture = Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
@@ -258,8 +229,10 @@ impl<'a> State<'a> {
     pub fn update(&mut self, delta: Duration) {
         self.camera_controller.update(&mut self.camera, delta.as_secs_f32());
         self.camera_uniform.update(&self.camera);
-        self.time_bind_group.update(&self.device);
         self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+
+        self.time_bind_group.update(&self.device, &self.queue);
+        self.light.bind.update(&self.device, &self.queue);
     }
 
     pub fn render(&mut self) -> anyhow::Result<()> {
@@ -296,12 +269,20 @@ impl<'a> State<'a> {
             timestamp_writes: None,
         });
 
-        render_pass.set_pipeline(&self.render_pipeline);
+        render_pass.set_pipeline(self.light_pipeline.pipe());
+        render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+        self.light.bind.set(1, &mut render_pass);
+        render_pass.draw_light_model(
+            &self.obj_model,
+        );
+
+        render_pass.set_pipeline(self.render_pipeline.pipe());
         render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-        self.time_bind_group.set(&mut render_pass);
+        self.time_bind_group.set(2, &mut render_pass);
+        self.light.bind.set(3, &mut render_pass);
 
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        //render_pass.draw_model(&self.obj_model);
+        render_pass.draw_model(&self.obj_model);
         render_pass.draw_model_instanced(&self.obj_model, 0..self.instances.len() as u32);
 
         drop(render_pass);

@@ -1,13 +1,12 @@
 use crate::prelude::*;
 
 pub struct TextureBindGroup {
-    pub group: u32,
     pub bind: wgpu::BindGroup,
     pub layout: wgpu::BindGroupLayout,
 }
 
 impl TextureBindGroup {
-    pub fn new(group: u32, device: &wgpu::Device, texture: &Texture) -> Self {
+    pub fn new(device: &wgpu::Device, texture: &Texture) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Texture Bind group layoyut"),
             entries: &[
@@ -47,13 +46,12 @@ impl TextureBindGroup {
 
         
         Self {
-            group,
             bind,
             layout,
         }
     }
 
-    pub fn dummy_layout(group: u32, device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    pub fn dummy_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Texture Bind group layoyut"),
             entries: &[
@@ -78,12 +76,8 @@ impl TextureBindGroup {
     }
 }
 impl BindGroup for TextureBindGroup {
-    fn update(&mut self, device: &wgpu::Device) {
+    fn update(&mut self, _device: &wgpu::Device, _queue: &wgpu::Queue) {
         todo!();
-    }
-
-    fn group_index(&self) -> u32 {
-        self.group
     }
 
     fn group_layout(&self) -> &wgpu::BindGroupLayout {

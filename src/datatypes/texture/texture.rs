@@ -144,8 +144,8 @@ impl Texture {
         self.bind_group.as_ref().unwrap()
     }
 
-    pub fn attach_bind_group(&mut self, group: u32, device: &wgpu::Device) {
-        let bind_group = TextureBindGroup::new(group, device, self);
+    pub fn attach_bind_group(&mut self, device: &wgpu::Device) {
+        let bind_group = TextureBindGroup::new(device, self);
         self.bind_group = Some(bind_group);
     }
 

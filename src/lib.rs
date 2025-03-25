@@ -5,8 +5,11 @@ pub mod utils;
 pub mod buffers;
 pub mod binds;
 pub mod geometry; 
+pub mod lights;
+pub mod pipelines;
 
 pub mod prelude {
+    pub use std::ops::Range;
     pub use std::sync::{
         Arc,
         Mutex,
@@ -31,13 +34,11 @@ pub mod prelude {
 
     pub use glam::{
         Mat4,
+        Mat3, 
+
         Vec4,
-        Vec3,
+        Vec3, vec3,
         Vec2,
-        vec2,
-        vec3,
-        vec4,
-        mat4,
 
         Quat,
     };
@@ -54,4 +55,6 @@ pub mod prelude {
     pub use crate::buffers::prelude::*;
     pub use crate::binds::prelude::*;
     pub use crate::geometry::prelude::*;
+    pub use crate::lights::prelude::*;
+    pub use crate::pipelines::prelude::*;
 }

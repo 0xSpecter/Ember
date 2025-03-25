@@ -1,14 +1,13 @@
 use crate::prelude::*;
 
 pub struct TimeBindGroup {
-    pub group: u32,
     pub buffer: wgpu::Buffer,
     pub bind: wgpu::BindGroup,
     pub layout: wgpu::BindGroupLayout,
 }
 
 impl TimeBindGroup {
-    pub fn new(group: u32, device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device) -> Self {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("time buffer"),
             contents: bytemuck::cast_slice(&[millis() as f32]),  
@@ -44,7 +43,6 @@ impl TimeBindGroup {
 
         
         Self {
-            group,
             buffer,
             bind,
             layout,
@@ -52,7 +50,7 @@ impl TimeBindGroup {
     }
 }
 impl BindGroup for TimeBindGroup {
-    fn update(&mut self, device: &wgpu::Device) {
+    fn update(&mut self, device: &wgpu::Device, _queue: &wgpu::Queue) {
         self.buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("time buffer"),
             contents: bytemuck::cast_slice(&[millis() as f32]),  
@@ -69,10 +67,6 @@ impl BindGroup for TimeBindGroup {
                 }
             ],
         });
-    }
-
-    fn group_index(&self) -> u32 {
-        self.group
     }
 
     fn group_layout(&self) -> &wgpu::BindGroupLayout {

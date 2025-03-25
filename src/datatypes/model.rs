@@ -40,7 +40,7 @@ impl Model {
                 Texture::default_texture(device, queue).unwrap()
             };
 
-            diffuse_texture.attach_bind_group(0, device);
+            diffuse_texture.attach_bind_group(device);
             Material::new(m.name, diffuse_texture)
         }).collect::<Vec<Material>>();
 
